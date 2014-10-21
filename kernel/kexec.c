@@ -943,9 +943,13 @@ SYSCALL_DEFINE4(kexec_load, unsigned long, entry, unsigned long, nr_segments,
 	struct kimage **dest_image, *image;
 	int result;
 
+	printk("KEXEC: kexec_load called");
+
 	/* We only trust the superuser with rebooting the system. */
 	if (!capable(CAP_SYS_BOOT))
 		return -EPERM;
+	
+	printk("KEXEC: permissions check passed");
 
 	/*
 	 * Verify we have a legal set of flags
@@ -954,16 +958,22 @@ SYSCALL_DEFINE4(kexec_load, unsigned long, entry, unsigned long, nr_segments,
 	if ((flags & KEXEC_FLAGS) != (flags & ~KEXEC_ARCH_MASK))
 		return -EINVAL;
 
+	printk("KEXEC: flags check passed");
+
 	/* Verify we are on the appropriate architecture */
 	if (((flags & KEXEC_ARCH_MASK) != KEXEC_ARCH) &&
 		((flags & KEXEC_ARCH_MASK) != KEXEC_ARCH_DEFAULT))
 		return -EINVAL;
+
+	printk("KEXEC: architecture check passed");
 
 	/* Put an artificial cap on the number
 	 * of segments passed to kexec_load.
 	 */
 	if (nr_segments > KEXEC_SEGMENT_MAX)
 		return -EINVAL;
+
+	printk("KEXEC: segments cap passed");
 
 	image = NULL;
 	result = 0;
@@ -978,6 +988,8 @@ SYSCALL_DEFINE4(kexec_load, unsigned long, entry, unsigned long, nr_segments,
 	 */
 	if (!mutex_trylock(&kexec_mutex))
 		return -EBUSY;
+
+	printk("KEXEC: mutex check passed");
 
 	dest_image = &kexec_image;
 	if (flags & KEXEC_ON_CRASH)
@@ -1004,6 +1016,10 @@ SYSCALL_DEFINE4(kexec_load, unsigned long, entry, unsigned long, nr_segments,
 
 		if (flags & KEXEC_PRESERVE_CONTEXT)
 			image->preserve_context = 1;
+#ifdef CONFIG_KEXEC_HARDBOOT
+		if (flags & KEXEC_HARDBOOT)
+			image->hardboot = 1;
+#endif
 		result = machine_kexec_prepare(image);
 		if (result)
 			goto out;
@@ -1021,6 +1037,7 @@ SYSCALL_DEFINE4(kexec_load, unsigned long, entry, unsigned long, nr_segments,
 	image = xchg(dest_image, image);
 
 out:
+	printk("KEXEC: kexec_load out");
 	mutex_unlock(&kexec_mutex);
 	kimage_free(image);
 
@@ -1080,6 +1097,7 @@ asmlinkage long compat_sys_kexec_load(unsigned long entry,
 
 void crash_kexec(struct pt_regs *regs)
 {
+	printk("KEXEC: crash_kexec called");
 	/* Take the kexec_mutex here to prevent sys_kexec_load
 	 * running on one cpu from replacing the crash kernel
 	 * we are using after a panic on a different cpu.
@@ -1529,6 +1547,8 @@ module_init(crash_save_vmcoreinfo_init)
 int kernel_kexec(void)
 {
 	int error = 0;
+	
+	printk("KEXEC: kernel_kexec entered\n");
 
 	if (!mutex_trylock(&kexec_mutex))
 		return -EBUSY;
@@ -1536,6 +1556,8 @@ int kernel_kexec(void)
 		error = -EINVAL;
 		goto Unlock;
 	}
+
+	printk("KEXEC: mutex and kexec image checks passed\n");
 
 #ifdef CONFIG_KEXEC_JUMP
 	if (kexec_image->preserve_context) {
@@ -1569,11 +1591,11 @@ int kernel_kexec(void)
 			goto Enable_irqs;
 	} else
 #endif
-	{
-		kernel_restart_prepare(NULL);
-		printk(KERN_EMERG "Starting new kernel\n");
-		machine_shutdown();
-	}
+	//{
+	//	kernel_restart_prepare(NULL);
+	//	printk(KERN_EMERG "Starting new kernel\n");
+	//	machine_shutdown();
+	//}
 
 	machine_kexec(kexec_image);
 

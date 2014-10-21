@@ -43,6 +43,10 @@
 #include "timer.h"
 #include "wdog_debug.h"
 
+#ifdef CONFIG_KEXEC_HARDBOOT
+#include <asm/kexec.h>
+#endif
+
 #define WDT0_RST	0x38
 #define WDT0_EN		0x40
 #define WDT0_BARK_TIME	0x4C
@@ -475,6 +479,13 @@ static int __init msm_pmic_restart_init(void)
 
 late_initcall(msm_pmic_restart_init);
 
+#ifdef CONFIG_KEXEC_HARDBOOT
+static void msm_kexec_hardboot_hook(void)
+{
+	msm_restart_prepare(NULL);
+}
+#endif
+
 static int __init msm_restart_init(void)
 {
 #ifdef CONFIG_MSM_DLOAD_MODE
@@ -497,6 +508,10 @@ static int __init msm_restart_init(void)
 	restart_reason = MSM_IMEM_BASE + RESTART_REASON_ADDR;
 #endif
 	pm_power_off = msm_power_off;
+
+#ifdef CONFIG_KEXEC_HARDBOOT
+	kexec_hardboot_hook = msm_kexec_hardboot_hook;
+#endif
 
 	if (scm_is_call_available(SCM_SVC_PWR, SCM_IO_DISABLE_PMIC_ARBITER) > 0)
 		scm_pmic_arbiter_disable_supported = true;

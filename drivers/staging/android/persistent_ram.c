@@ -384,17 +384,21 @@ static int __devinit persistent_ram_buffer_init(const char *name,
 
 	list_for_each_entry(ram, &persistent_ram_list, node) {
 		start = ram->start;
+		printk("persistent_ram: start: %X\n", ram->start);
 		for (i = 0; i < ram->num_descs; i++) {
 			desc = &ram->descs[i];
+			printk("persistent_ram: desc: %d desc->name: %s name: %s\n", i, desc->name, name);
 			if (!strcmp(desc->name, name)) {
 				*ramp = ram;
+				printk("persistent_ram:  strcmp pass\n");
 				return persistent_ram_buffer_map(start,
 						desc->size, prz);
 			}
+			printk("persistent_ram:  strcmp fail\n");
 			start += desc->size;
 		}
 	}
-
+	printk("persistent_ram: persistent_ram_buffer_init failed\n");
 	return -EINVAL;
 }
 

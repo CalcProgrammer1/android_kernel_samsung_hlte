@@ -13,6 +13,7 @@
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include <linux/platform_data/ram_console.h>
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
@@ -90,13 +91,18 @@ extern int msm_show_resume_irq_mask;
 #include <mach/msm8974-thermistor.h>
 #endif
 
+#ifdef CONFIG_KEXEC_HARDBOOT
+#include <linux/memblock.h>
+#endif
+
 #ifdef CONFIG_ANDROID_PERSISTENT_RAM
 /* CONFIG_SEC_DEBUG reserving memory for persistent RAM*/
 #define RAMCONSOLE_PHYS_ADDR 0x1FB00000
+#define RAMCONSOLE_SIZE SZ_1M
 static struct persistent_ram_descriptor per_ram_descs[] __initdata = {
 {
 	.name = "ram_console",
-	.size = SZ_1M,
+	.size = RAMCONSOLE_SIZE,
 }
 };
 
@@ -104,7 +110,29 @@ static struct persistent_ram per_ram __initdata = {
 	.descs = per_ram_descs,
 	.num_descs = ARRAY_SIZE(per_ram_descs),
 	.start = RAMCONSOLE_PHYS_ADDR,
-	.size = SZ_1M
+	.size = RAMCONSOLE_SIZE
+};
+#endif
+
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+static struct resource ram_console_resource[] = {
+	{
+		.flags	= IORESOURCE_MEM,
+		.start  = RAMCONSOLE_PHYS_ADDR,
+		.end	= RAMCONSOLE_PHYS_ADDR + RAMCONSOLE_SIZE - 1
+	}
+};
+
+static struct ram_console_platform_data ram_console_pdata;
+
+static struct platform_device ram_console_device = {
+	.name = "ram_console",
+	.id = -1,
+	.num_resources  = ARRAY_SIZE(ram_console_resource),
+	.resource       = ram_console_resource,
+	.dev	= {
+		.platform_data	= &ram_console_pdata,
+	},
 };
 #endif
 
@@ -319,6 +347,17 @@ static struct i2c_board_info max77826_pmic_info[] __initdata = {
 
 void __init msm_8974_reserve(void)
 {
+#ifdef CONFIG_KEXEC_HARDBOOT
+	// Reserve space for hardboot page, just before the ram_console
+	//struct membank* bank = &meminfo.bank[0];
+	//phys_addr_t start = bank->start + bank->size - SZ_1M - 0x00300000;
+	phys_addr_t start = KEXEC_HB_PAGE_ADDR;
+	int ret = memblock_remove(start, SZ_1M);
+	if(!ret)
+		pr_info("Hardboot page reserved at 0x%X\n", start);
+	else
+		pr_err("Failed to reserve space for hardboot page at 0x%X!\n", start);
+#endif
 	of_scan_flat_dt(dt_scan_for_memory_reserve, NULL);
 #ifdef CONFIG_ANDROID_PERSISTENT_RAM
 	persistent_ram_early_init(&per_ram);
@@ -355,6 +394,9 @@ static void __init msm8974_early_memory(void)
 static struct platform_device *common_devices[] __initdata = {
 #ifdef CONFIG_SEC_THERMISTOR
     &sec_device_thermistor,
+#endif
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+    &ram_console_device,
 #endif
 };
 
@@ -518,4 +560,4 @@ DT_MACHINE_START(MSM8974_DT, "Qualcomm MSM 8974 (Flattened Device Tree)")
 	.init_very_early = msm8974_init_very_early,
 	.restart = msm_restart,
 	.smp = &msm8974_smp_ops,
-MACHINE_END
+MACHINE_END	

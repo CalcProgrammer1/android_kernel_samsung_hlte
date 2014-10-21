@@ -55,6 +55,8 @@ static int __devinit ram_console_probe(struct platform_device *pdev)
 	struct ram_console_platform_data *pdata = pdev->dev.platform_data;
 	struct persistent_ram_zone *prz;
 
+	printk("ram_console: ram_console_probe\n");
+
 	prz = persistent_ram_init_ringbuffer(&pdev->dev, true);
 	if (IS_ERR(prz))
 		return PTR_ERR(prz);
@@ -83,6 +85,7 @@ static struct platform_driver ram_console_driver = {
 
 static int __init ram_console_module_init(void)
 {
+	printk("ram_console: ram_console_module_init\n");
 	return platform_driver_register(&ram_console_driver);
 }
 
@@ -155,11 +158,19 @@ static int __init ram_console_late_init(void)
 	struct proc_dir_entry *entry;
 	struct persistent_ram_zone *prz = ram_console_zone;
 
+	printk("ram_console: ram_console_late_init\n");
+
 	if (!prz)
+	{
+		printk("ram_console: ram console zone pointer is null\n");
 		return 0;
+	}
 
 	if (persistent_ram_old_size(prz) == 0)
+	{
+		printk("ram_console: ram console size is 0\n");
 		return 0;
+	}
 
 	entry = create_proc_entry("last_kmsg", S_IFREG | S_IRUGO, NULL);
 	if (!entry) {

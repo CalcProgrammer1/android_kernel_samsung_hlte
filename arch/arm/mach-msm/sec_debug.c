@@ -2224,8 +2224,8 @@ int __init sec_debug_init(void)
 	register_reboot_notifier(&nb_reboot_block);
 	atomic_notifier_chain_register(&panic_notifier_list, &nb_panic_block);
 
-	if (!enable)
-		return -EPERM;
+	//if (!enable)
+	//	return -EPERM;
 
 #ifdef CONFIG_SEC_DEBUG_SCHED_LOG
 	__init_sec_debug_log();
